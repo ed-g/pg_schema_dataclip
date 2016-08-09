@@ -1,4 +1,23 @@
 <?php
+#
+# Copyright (c) 2016 Trillium Solutions http://trilliumtransit.com/
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#    
+
+
+
 
 # Example connstring (run this in the shell before starting dataclip):
 # export PG_SCHEMA_DATACLIP_CONNECTION_STRING="user='pguser' host='pghost' dbname='pgdatabase' password='pgpassword' sslmode='require'
@@ -99,6 +118,53 @@ function viewname () {
     }
 }
 
+
+/*
+ * Views listed in ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES## have mild security in 
+ * the form of an access_cookie.  Multiple access_cookie may be listed for a view, in 
+ * which case any of the access_cookie will allow access.
+ *
+ * If there are no access_cookie listed for a view, then the view is default 
+ * public.
+ *
+ * To manage the access cookies:
+
+    SET search_path = your_schema;
+
+    CREATE TABLE "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" (
+        viewname      text not null, 
+        access_cookie text not null default 'public',
+        PRIMARY KEY (viewname, access_cookie)
+    );
+
+    INSERT INTO 
+        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
+        (viewname) values ('foo');
+
+    INSERT INTO 
+        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
+        (viewname, access_cookie) values ('bar', gen_random_uuid());
+
+    GRANT SELECT ON "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" to your_user;
+
+ *
+ * When new views are created, grant access normally through postgres:
+ *
+
+    CREATE view your_schema.foo AS select 'bar' AS bar;
+    GRANT SELECT ON your_schema.foo TO your_user;
+
+ *
+ * Or, grant access to everything!
+ *
+    CREATE view your_schema.foo AS select 'bar'  AS bar;
+    CREATE view your_schema.baz AS select 'quux' AS quux;
+    GRANT SELECT ON ALL TABLES IN SCHEMA your_schema TO your_user;
+
+ */
+
+
+
 function access_cookie () {
     // access_cookie is either a UUID for "private" dataclip views, or the 
     // string 'public' for "public" dataclip views.
@@ -122,32 +188,6 @@ function access_cookie () {
         return 'public';
     }
 }
-
-/*
-
-    SET search_path = your_schema;
-
-    CREATE TABLE "##PG_SCHEMA_DATACLIP_ACCESS_CONTROL##" (
-        viewname text not null, 
-        access_cookie text not null default 'public',
-        PRIMARY KEY (viewname, access_cookie)
-    );
-
-    INSERT INTO 
-        "##PG_SCHEMA_DATACLIP_ACCESS_CONTROL##" 
-        (viewname) values ('foo');
-
-    INSERT INTO 
-        "##PG_SCHEMA_DATACLIP_ACCESS_CONTROL##" 
-        (viewname, access_cookie) values ('bar', gen_random_uuid());
-
-    GRANT SELECT ON "##PG_SCHEMA_DATACLIP_ACCESS_CONTROL##" to your_user;
-
-    or: 
-
-    GRANT SELECT ON ALL TABLES IN SCHEMA your_schema TO your_user;
-
- */
 
 function view_exists($viewname) {
     // In Postgres, current_schema() gives the first schema listed in "search_path".
