@@ -93,7 +93,7 @@ function valid_viewname ($viewname) {
     
     $invalid_view_regex = "/PG_SCHEMA_DATACLIP_ACCESS/i"; 
 
-    $valid_view_regex = "/^[a-z_]+$/";
+    $valid_view_regex = "/^[a-z0-9_]+$/";
 
     if (preg_match($invalid_view_regex, $viewname)) {
         return False;
