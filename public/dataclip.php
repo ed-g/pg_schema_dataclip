@@ -213,6 +213,23 @@ function viewname () {
     }
 }
 
+function limit() {
+    $default_limit = 5000;
+    if (isset($_REQUEST['limit'])) {
+        $limit_text = $_REQUEST['limit'];
+        $limit      = intval($limit_text);
+        if ($limit >= 0) {
+            return $limit;
+        } else {
+            error_log("limit: [$limit_text] must be an integer greater than or equal to zero.");
+        }
+    } else {
+        error_log("limit was not supplied, defaulting to $default_limit");
+        return $default_limit;
+    }
+}
+
+
 
 
 function access_cookie () {
@@ -348,14 +365,21 @@ function display_dataclip_style ()
     <?php
 }
 
-function display_dataclip($viewname) {
+function display_dataclip($viewname, $limit=100) {
+    $limit_exceeded = False;
+    $r = Null;
+
     if (! valid_viewname($viewname)) {
         error_log("Invalid viewname $viewname passed to display dataclip! This should never happen.");
         return null;
+    } else {
+        # Sadly, a table name cannot be used as a query parameter. We try to 
+        # prevent sql injection by double checking the viewname is valid, above. 
+        $r = db_query_params("SELECT * FROM $viewname", []);
     }
-    $r = db_query_params("SELECT * FROM " . $viewname,  []);
 
-    $nf = pg_num_fields($r);
+    $num_rows = pg_num_rows($r);
+    $nf       = pg_num_fields($r);
     $field_names = array();
     for ($i = 0; $i < $nf; $i++) {
         array_push($field_names, pg_field_name($r, $i));
@@ -365,22 +389,27 @@ function display_dataclip($viewname) {
     print_r($field_names);
     */
 
+
+    if ($num_rows > $limit) {
+        echo "<h2>Number of returned rows $num_rows exceeds limit $limit, only showing $limit rows</h2>";
+    } else {
+        echo "<h2>Query returned $num_rows rows</h2>";
+    }
+
     echo '<table class="dataclip sortable">';
     echo "<thead>";
     foreach ($field_names as $f) {
         echo "<th>{$f}</th>";
     }
     echo "</thead>\n";
-
-    while ($a = pg_fetch_array($r)) {
-
+    for ($i = 0; ($a = pg_fetch_array($r)) and $i < $limit; $i++) {
         echo "<tr>";
         foreach ($field_names as $f) {
             echo "<td>{$a[$f]}</td>";
         }
         echo "</tr>\n";
-        // print_r($a);
     }
+
 
     echo "</table>";
 }
@@ -410,9 +439,10 @@ function main() {
      */
 
     if (view_exists($viewname) and access_allowed($viewname, $access_cookie)) {
+        $limit = limit();
         echo '<h1> Data for: ' . $viewname . "</h1>\n";
         display_dataclip_style();
-        display_dataclip($viewname);
+        display_dataclip($viewname, $limit);
     } else {
         echo "<h1>Sorry, either a view by the name of '$viewname' does not exist, or the access_cookie '$access_cookie' does not allow you access.";
     }
