@@ -400,7 +400,7 @@ function main() {
 
     echo "<html>\n";
     echo "<head>";
-    echo '<script src="sorttable.js"></script>\n';
+    echo '<script src="sorttable.js"></script>' . "\n";
     echo "<title> Data for: " . $viewname . "</title></head>\n";
     echo "<body>\n";
     
