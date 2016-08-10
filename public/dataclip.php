@@ -2,27 +2,121 @@
 #
 # Copyright (c) 2016 Trillium Solutions http://trilliumtransit.com/
 #
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #    
 
+/*
+ * This dataclip.php program takes parameters from environment variables, to 
+ * make it easy to run under such things as Docker. 
+ *
+ * Example PG_SCHEMA_DATACLIP_CONNECTION_STRING connection string (run this in 
+ * the shell before starting dataclip):
+ 
+ export PG_SCHEMA_DATACLIP_CONNECTION_STRING="user='dataclip_user' host='pghost' dbname='pgdatabase' password='pgpassword' sslmode='require'
+
+ * 
+ * There are more docs at http://php.net/manual/en/function.pg-connect.php
+ */
+
+/* 
+ * The database user (referred to as dataclip_user, but it could be any 
+ * postgres user) should have as few privileges as possible.
+ *
+ * You'll want to use a low setting for its connection limit, so it is less 
+ * likely to create a denial of service against your database if it gets 
+ * spammed with requests. Running through a proxy like pgbouncer might also be 
+ * a good idea.
+ *
+ 
+    ALTER USER dataclip_user CONNECTION LIMIT 2;
+
+ *
+ * USAGE on a single schema (referred to as dataclip_schema, but it could be 
+ * any Postgres schema)
+ *
+ 
+    GRANT USAGE ON SCHEMA dataclip_schema TO dataclip_user;
+
+ *
+ * SELECT permissions for tables and views in the dataclip_schema only.
+ * There are at least three options for how to manage this.
+ *
+ * When new views are created, (option A) grant access normally.
+ *
+
+    CREATE view dataclip_schema.foo AS select 'bar' AS bar;
+    GRANT SELECT ON dataclip_schema.foo TO dataclip_user;
+
+ *
+ * Or (option B) create views, then grant access to everything in the schema.  
+ * You'll have to re-run the "GRANT SELECT ON ALL TABLES IN SCHEMA ..." command 
+ * each time new views are created.
+ *
+
+    CREATE view dataclip_schema.foo AS select 'bar'  AS bar;
+    CREATE view dataclip_schema.baz AS select 'quux' AS quux;
+    GRANT SELECT ON ALL TABLES IN SCHEMA dataclip_schema TO dataclip_user;
 
 
+ * Or (option C), use the handy postgres "ALTER DEFAULT PRIVILEGES" command to 
+ * grant access in the future whenever views are created.
+ *
+ * privileged_user is the user you'll typically be using to CREATE the 
+ * views.
+ *
+ * dataclip_user is the user used to SELECT from the views and show them 
+ * on the web.
+ *
 
-# Example connstring (run this in the shell before starting dataclip):
-# export PG_SCHEMA_DATACLIP_CONNECTION_STRING="user='pguser' host='pghost' dbname='pgdatabase' password='pgpassword' sslmode='require'
-#
-# more docs at http://php.net/manual/en/function.pg-connect.php
+    ALTER DEFAULT PRIVILEGES 
+        FOR ROLE privileged_user
+        IN SCHEMA dataclip_schema 
+        GRANT SELECT ON TABLES TO dataclip_user;
+
+ *
+ */
+
+/*
+ * Views listed in ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES## have mild security in 
+ * the form of an access_cookie.  Multiple access_cookie may be listed for a view, in 
+ * which case any of the access_cookie will allow access.
+ *
+ * If there are no access_cookie listed for a view, then the view is default 
+ * public.
+ *
+ * To manage the access cookies:
+
+    SET search_path = dataclip_schema;
+
+    CREATE TABLE "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" (
+        viewname      text not null, 
+        access_cookie text not null default 'public',
+        PRIMARY KEY (viewname, access_cookie)
+    );
+
+    INSERT INTO 
+        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
+        (viewname) values ('foo');
+
+    INSERT INTO 
+        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
+        (viewname, access_cookie) values ('bar', gen_random_uuid());
+
+    GRANT SELECT ON "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" to dataclip_user;
+
+ */
+
 
 global $DB_CONNECTION;
 
@@ -61,6 +155,7 @@ function db_query_params($query, $params) {
 }
 
 function connect_to_database_or_die () {
+
     if (null !== getenv('PG_SCHEMA_DATACLIP_CONNECTION_STRING')) {
         global $DB_CONNECTION;
         $pg_connection_string = getenv('PG_SCHEMA_DATACLIP_CONNECTION_STRING');
@@ -119,51 +214,6 @@ function viewname () {
 }
 
 
-/*
- * Views listed in ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES## have mild security in 
- * the form of an access_cookie.  Multiple access_cookie may be listed for a view, in 
- * which case any of the access_cookie will allow access.
- *
- * If there are no access_cookie listed for a view, then the view is default 
- * public.
- *
- * To manage the access cookies:
-
-    SET search_path = your_schema;
-
-    CREATE TABLE "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" (
-        viewname      text not null, 
-        access_cookie text not null default 'public',
-        PRIMARY KEY (viewname, access_cookie)
-    );
-
-    INSERT INTO 
-        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
-        (viewname) values ('foo');
-
-    INSERT INTO 
-        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
-        (viewname, access_cookie) values ('bar', gen_random_uuid());
-
-    GRANT SELECT ON "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" to your_user;
-
- *
- * When new views are created, grant access normally through postgres:
- *
-
-    CREATE view your_schema.foo AS select 'bar' AS bar;
-    GRANT SELECT ON your_schema.foo TO your_user;
-
- *
- * Or, grant access to everything!
- *
-    CREATE view your_schema.foo AS select 'bar'  AS bar;
-    CREATE view your_schema.baz AS select 'quux' AS quux;
-    GRANT SELECT ON ALL TABLES IN SCHEMA your_schema TO your_user;
-
- */
-
-
 
 function access_cookie () {
     // access_cookie is either a UUID for "private" dataclip views, or the 
@@ -209,7 +259,8 @@ function view_exists($viewname) {
 }
 
 function access_allowed($viewname, $access_cookie) {
-    // TODO: access control.
+    // Access control.
+    //
     // Obviously if someone can dump the contents of 
     // ##PG_SCHEMA_DATACLIP_ACCESS_CONTROL_RESTRICTED## then they can access any data 
     // clip.
@@ -224,8 +275,11 @@ function access_allowed($viewname, $access_cookie) {
         WHERE viewname = $1
         ", [$viewname] );
 
-    # views default to PUBLIC:
-    # no entries for viewname in PG_SCHEMA_DATACLIP_ACCESS_COOKIES = no restriction
+    # Views default to PUBLIC access:
+    #
+    # If there are no entries for viewname in 
+    # ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##, we enforce no access restriction.
+    #
     $no_restriction = (intval(pg_fetch_array($r_entries)['entry_count']) == 0) ? True : False;
 
     error_log("no_restriction: " . ($no_restriction ? "True" : "False"));
@@ -311,7 +365,7 @@ function display_dataclip($viewname) {
     print_r($field_names);
     */
 
-    echo "<table class=dataclip>";
+    echo '<table class="dataclip sortable">';
     echo "<thead>";
     foreach ($field_names as $f) {
         echo "<th>{$f}</th>";
@@ -345,7 +399,9 @@ function main() {
     $access_cookie = access_cookie();
 
     echo "<html>\n";
-    echo "<head><title> Data for: " . $viewname . "</title></head>\n";
+    echo "<head>";
+    echo '<script src="sorttable.js"></script>\n';
+    echo "<title> Data for: " . $viewname . "</title></head>\n";
     echo "<body>\n";
     
     /*
