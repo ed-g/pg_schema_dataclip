@@ -307,7 +307,7 @@ function display_dataclip($viewname, $limit=100, $offset=0) {
         #
         # TODO: double check $offset
         #
-        $r = db_query_params("SELECT * FROM $viewname OFFSET $offset");
+        $r = db_query("SELECT * FROM $viewname OFFSET $offset");
     }
 
     $num_rows = pg_num_rows($r);
