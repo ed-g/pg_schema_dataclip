@@ -49,7 +49,7 @@ Note that all configuration table include uppercase letters and `#` in their nam
 
 Dataclip views may only use lowercase letters `[a-z]`, digits `[0-9]`, and underscores (`_`) in their names.
 
-Postgres will require double quotes to refer to configuration table names.
+Postgres will typically require double quotes to refer to configuration table names.
 
 
 
