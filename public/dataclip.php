@@ -303,7 +303,7 @@ function display_dataclip($viewname, $limit=100, $offset=0) {
     } else {
         # Sadly, a table name cannot be used as a query parameter. We try to 
         # prevent sql injection by double checking the viewname is valid, above. 
-        $r = db_query_params("SELECT * FROM $viewname OFFSET", [$offset]);
+        $r = db_query_params("SELECT * FROM $viewname OFFSET $1", [$offset]);
     }
 
     $num_rows = pg_num_rows($r);
