@@ -27,7 +27,7 @@
 
  * If you would like to enable in-database logging, set the PG_SCHEMA_DATACLIP_ACCESS_LOG to any value.
  
-$ export PG_SCHEMA_DATACLIP_ACCESS_LOG="True"
+$ export PG_SCHEMA_DATACLIP_ACCESS_LOG="on"
 
  * And create an access log table
  *
@@ -390,7 +390,9 @@ function display_dataclip_style ()
 
 function insert_to_access_log($viewname, $access_allowed) {
     db_query_params(
-        'INSERT INTO TABLE "##PG_SCHEMA_DATACLIP_ACCESS_LOG##" (viewname, access_allowed) VALUES ($1, $2)', 
+        "INSERT INTO TABLE \"##PG_SCHEMA_DATACLIP_ACCESS_LOG##\" 
+            (viewname, access_allowed) 
+            VALUES ($1, $2)", 
         [ $viewname, $access_allowed ]);
 }
 
