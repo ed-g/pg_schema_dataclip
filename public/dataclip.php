@@ -390,7 +390,7 @@ function display_dataclip_style ()
 
 function insert_to_access_log($viewname, $access_allowed) {
     db_query_params(
-        "INSERT INTO TABLE \"##PG_SCHEMA_DATACLIP_ACCESS_LOG##\" 
+        "INSERT INTO \"##PG_SCHEMA_DATACLIP_ACCESS_LOG##\" 
             (viewname, access_allowed) 
             VALUES ($1, $2)", 
         [ $viewname, $access_allowed ]);
