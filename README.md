@@ -31,8 +31,7 @@ If you would like to enable in-database logging, set the PG_SCHEMA_DATACLIP_ACCE
 $ export PG_SCHEMA_DATACLIP_ACCESS_LOG="on"
 ```
 
-And create an access-log table with INSERT access to your `dataclip_user`; 
-
+And create an access-log table with INSERT access to your `dataclip_user`.
 
 ```sql
  SET search_path = dataclip_schema;
@@ -43,6 +42,16 @@ And create an access-log table with INSERT access to your `dataclip_user`;
  );
  GRANT INSERT on dataclip_schema."##PG_SCHEMA_DATACLIP_ACCESS_LOG##" to dataclip_user;
 ```
+
+#### Aside on configuration table names
+
+Note that all configuration table include uppercase letters and `#` in their names, in order to help prevent them from accidentally being exposed to the web.
+
+Dataclip views may only use lowercase letters `[a-z]`, digits `[0-9]`, and underscores (`_`) in their names.
+
+Postgres will require double quotes to refer to configuration table names.
+
+
 
 ## Database User 
 
