@@ -25,6 +25,20 @@
  
  export PG_SCHEMA_DATACLIP_CONNECTION_STRING="user='dataclip_user' host='pghost' dbname='pgdatabase' password='pgpassword' sslmode='require'
 
+ * If you would like to enable in-database logging, set the PG_SCHEMA_DATACLIP_ACCESS_LOG to any value.
+ 
+$ export PG_SCHEMA_DATACLIP_ACCESS_LOG="True"
+
+ * And create an access log table
+ *
+ CREATE TABLE dataclip_schema."##PG_SCHEMA_DATACLIP_ACCESS_LOG##" (
+     viewname text,
+     request_time timestamptz default now(),
+     access_allowed boolean
+ );
+
+ GRANT INSERT on dataclip_schema."##PG_SCHEMA_DATACLIP_ACCESS_LOG##" to dataclip_user;
+
  * 
  * There are more docs at http://php.net/manual/en/function.pg-connect.php
  */
@@ -183,6 +197,15 @@ function connect_to_database_or_die () {
     }
 }
 
+function pg_schema_dataclip_access_log_enabled(){
+    # is the in-database access log configured?
+    if (null !== getenv('PG_SCHEMA_DATACLIP_ACCESS_LOG')) {
+        return True;
+    } else {
+        return False;
+    }
+}
+
 function valid_viewname ($viewname) {
     ## Double check to disallow view for anything resembling an access control table.
     
@@ -279,7 +302,7 @@ function access_allowed($viewname, $access_cookie) {
     // Access control.
     //
     // Obviously if someone can dump the contents of 
-    // ##PG_SCHEMA_DATACLIP_ACCESS_CONTROL_RESTRICTED## then they can access any data 
+    // ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES## then they can access any data 
     // clip.
     //
     // Therefore, the access control table should given a name that can never 
@@ -365,6 +388,12 @@ function display_dataclip_style ()
     <?php
 }
 
+function insert_to_access_log($viewname, $access_allowed) {
+    db_query_params(
+        'INSERT INTO TABLE "##PG_SCHEMA_DATACLIP_ACCESS_LOG##" (viewname, access_allowed) VALUES ($1, $2)', 
+        [ $viewname, $access_allowed ]);
+}
+
 function display_dataclip($viewname, $limit=100) {
     $limit_exceeded = False;
     $r = Null;
@@ -426,6 +455,11 @@ function main() {
         exit(1);
     }
     $access_cookie = access_cookie();
+
+    if (pg_schema_dataclip_access_log_enabled()) {
+        insert_to_access_log($viewname, access_allowed($viewname, $access_cookie));
+    }
+
 
     echo "<html>\n";
     echo "<head>";
