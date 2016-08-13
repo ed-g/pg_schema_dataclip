@@ -171,4 +171,19 @@ Views are public by default, so inserting entries with a 'public' access-cookie 
         (viewname, access_cookie) values ('baz', '64ee7483-ae4c-4138-8a94-6fb09adefe3b');
 ```
 
+##### Build an access-url using the return value from `INSERT`
+
+```sql
+WITH
+new_cookie AS (
+    INSERT INTO
+        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" (viewname )
+        VALUES ('foo')
+        RETURNING viewname, access_cookie
+)
+SELECT format('viewname?%s&access_cookie=%s', viewname, access_cookie) FROM new_cookie
+
+/* Gives: 'viewname?foo&access_cookie=0a93f68f-7e01-47d6-bb26-9bd855eaba92' */
+```
+
 
