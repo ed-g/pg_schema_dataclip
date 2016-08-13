@@ -301,9 +301,13 @@ function display_dataclip($viewname, $limit=100, $offset=0) {
         error_log("Invalid viewname $viewname passed to display dataclip! This should never happen.");
         return null;
     } else {
-        # Sadly, a table name cannot be used as a query parameter. We try to 
-        # prevent sql injection by double checking the viewname is valid, above. 
-        $r = db_query_params("SELECT * FROM $viewname OFFSET $1", [$offset]);
+        # Sadly, neither table names nor LIMIT/OFFSET values cannot be used as 
+        # a query parameter. We try to prevent sql injection by double checking 
+        # the viewname and offset are valid, above. 
+        #
+        # TODO: double check $offset
+        #
+        $r = db_query_params("SELECT * FROM $viewname OFFSET $offset");
     }
 
     $num_rows = pg_num_rows($r);
@@ -329,7 +333,8 @@ function display_dataclip($viewname, $limit=100, $offset=0) {
     foreach ($field_names as $f) {
         echo "<th>{$f}</th>";
     }
-    echo "</thead>\n";
+    echo "</thead><tbody>\n";
+
     for ($i = 0; ($a = pg_fetch_array($r)) and $i < $limit; $i++) {
         echo "<tr>";
         foreach ($field_names as $f) {
@@ -338,8 +343,7 @@ function display_dataclip($viewname, $limit=100, $offset=0) {
         echo "</tr>\n";
     }
 
-
-    echo "</table>";
+    echo "</tbody></table>\n";
 }
 
 function main() {
