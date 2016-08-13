@@ -1,21 +1,29 @@
 # pg_schema_dataclip
 Minimal dataclip-like based on a postgres schema: each view in the schema is published as a web page table.
 
-To test-run:
+## To test-run:
 
 ```bash
 php -S localhost:8080 -t public/
 ```
 
+## Configuration
+
 The dataclip.php program takes parameters from environment variables, to 
 make it easy to run under such things as Docker. 
-Example `PG_SCHEMA_DATACLIP_CONNECTION_STRING` connection string (run this in 
+
+
+### Database connection
+
+`PG_SCHEMA_DATACLIP_CONNECTION_STRING` connection string (run this in 
 the shell before starting dataclip):
- 
+
 
 ```bash
  export PG_SCHEMA_DATACLIP_CONNECTION_STRING="user='dataclip_user' host='pghost' dbname='pgdatabase' password='pgpassword' sslmode='require'
 ```
+
+### In-database request logging
 
 If you would like to enable in-database logging, set the PG_SCHEMA_DATACLIP_ACCESS_LOG to any value.
  
@@ -36,6 +44,7 @@ And create an access-log table with INSERT access to your `dataclip_user`;
  GRANT INSERT on dataclip_schema."##PG_SCHEMA_DATACLIP_ACCESS_LOG##" to dataclip_user;
 ```
 
+## Database User 
 
 The database user (referred to as dataclip_user, but it could be any 
 postgres user) should have as few privileges as possible.
@@ -57,6 +66,7 @@ any Postgres schema)
 GRANT USAGE ON SCHEMA dataclip_schema TO dataclip_user;
 ```
 
+## Granting access to dataclip views
 
 SELECT permissions for tables and views in the dataclip_schema only.
  There are at least three options for how to manage this.
@@ -121,6 +131,4 @@ To manage the access cookies:
         (viewname, access_cookie) values ('bar', gen_random_uuid());
 
 ```
-
-
 
