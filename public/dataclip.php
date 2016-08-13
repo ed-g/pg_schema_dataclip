@@ -16,121 +16,6 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #    
 
-/*
- * This dataclip.php program takes parameters from environment variables, to 
- * make it easy to run under such things as Docker. 
- *
- * Example PG_SCHEMA_DATACLIP_CONNECTION_STRING connection string (run this in 
- * the shell before starting dataclip):
- 
- export PG_SCHEMA_DATACLIP_CONNECTION_STRING="user='dataclip_user' host='pghost' dbname='pgdatabase' password='pgpassword' sslmode='require'
-
- * If you would like to enable in-database logging, set the PG_SCHEMA_DATACLIP_ACCESS_LOG to any value.
- 
-$ export PG_SCHEMA_DATACLIP_ACCESS_LOG="on"
-
- * And create an access log table
- *
- CREATE TABLE dataclip_schema."##PG_SCHEMA_DATACLIP_ACCESS_LOG##" (
-     viewname text,
-     request_time timestamptz default now(),
-     access_allowed boolean
- );
-
- GRANT INSERT on dataclip_schema."##PG_SCHEMA_DATACLIP_ACCESS_LOG##" to dataclip_user;
-
- * 
- * There are more docs at http://php.net/manual/en/function.pg-connect.php
- */
-
-/* 
- * The database user (referred to as dataclip_user, but it could be any 
- * postgres user) should have as few privileges as possible.
- *
- * You'll want to use a low setting for its connection limit, so it is less 
- * likely to create a denial of service against your database if it gets 
- * spammed with requests. Running through a proxy like pgbouncer might also be 
- * a good idea.
- *
- 
-    ALTER USER dataclip_user CONNECTION LIMIT 2;
-
- *
- * USAGE on a single schema (referred to as dataclip_schema, but it could be 
- * any Postgres schema)
- *
- 
-    GRANT USAGE ON SCHEMA dataclip_schema TO dataclip_user;
-
- *
- * SELECT permissions for tables and views in the dataclip_schema only.
- * There are at least three options for how to manage this.
- *
- * When new views are created, (option A) grant access normally.
- *
-
-    CREATE view dataclip_schema.foo AS select 'bar' AS bar;
-    GRANT SELECT ON dataclip_schema.foo TO dataclip_user;
-
- *
- * Or (option B) create views, then grant access to everything in the schema.  
- * You'll have to re-run the "GRANT SELECT ON ALL TABLES IN SCHEMA ..." command 
- * each time new views are created.
- *
-
-    CREATE view dataclip_schema.foo AS select 'bar'  AS bar;
-    CREATE view dataclip_schema.baz AS select 'quux' AS quux;
-    GRANT SELECT ON ALL TABLES IN SCHEMA dataclip_schema TO dataclip_user;
-
-
- * Or (option C), use the handy postgres "ALTER DEFAULT PRIVILEGES" command to 
- * grant access in the future whenever views are created.
- *
- * privileged_user is the user you'll typically be using to CREATE the 
- * views.
- *
- * dataclip_user is the user used to SELECT from the views and show them 
- * on the web.
- *
-
-    ALTER DEFAULT PRIVILEGES 
-        FOR ROLE privileged_user
-        IN SCHEMA dataclip_schema 
-        GRANT SELECT ON TABLES TO dataclip_user;
-
- *
- */
-
-/*
- * Views listed in ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES## have mild security in 
- * the form of an access_cookie.  Multiple access_cookie may be listed for a view, in 
- * which case any of the access_cookie will allow access.
- *
- * If there are no access_cookie listed for a view, then the view is default 
- * public.
- *
- * To manage the access cookies:
-
-    SET search_path = dataclip_schema;
-
-    CREATE TABLE "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" (
-        viewname      text not null, 
-        access_cookie text not null default 'public',
-        PRIMARY KEY (viewname, access_cookie)
-    );
-
-    INSERT INTO 
-        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
-        (viewname) values ('foo');
-
-    INSERT INTO 
-        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
-        (viewname, access_cookie) values ('bar', gen_random_uuid());
-
-    GRANT SELECT ON "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" to dataclip_user;
-
- */
-
 
 global $DB_CONNECTION;
 
@@ -246,13 +131,25 @@ function limit() {
         } else {
             error_log("limit: [$limit_text] must be an integer greater than or equal to zero.");
         }
-    } else {
-        error_log("limit was not supplied, defaulting to $default_limit");
-        return $default_limit;
     }
+    error_log("A valid limit was not supplied, defaulting to $default_limit");
+    return $default_limit;
 }
 
-
+function offset() {
+    $default_offset = 0;
+    if (isset($_REQUEST['offset'])) {
+        $offset_text = $_REQUEST['offset'];
+        $offset      = intval($offset_text);
+        if ($offset >= 0) {
+            return $offset;
+        } else {
+            error_log("offset: [$offset_text] must be an integer greater than or equal to zero.");
+        }
+    } 
+    error_log("A valid offset was not supplied, defaulting to $default_offset");
+    return $default_offset;
+}
 
 
 function access_cookie () {
@@ -262,7 +159,7 @@ function access_cookie () {
     // The idea is a you can send someone a link embedding an access_cookie, 
     // for mild security.
 
-    $valid_access_cookie_regex = "/^([0-9a-f\-]+|public)$/"; # match uuid, or "public"
+    $valid_access_cookie_regex = "/^([0-9a-z_\-]+)$/"; # match uuid, or "public"
     if (isset($_REQUEST['access_cookie'])) {
         // force access_cookie to lower case.
         $access_cookie = strtolower($_REQUEST['access_cookie']);
@@ -396,7 +293,7 @@ function insert_to_access_log($viewname, $access_allowed) {
         [ $viewname, $access_allowed ]);
 }
 
-function display_dataclip($viewname, $limit=100) {
+function display_dataclip($viewname, $limit=100, $offset=0) {
     $limit_exceeded = False;
     $r = Null;
 
@@ -406,7 +303,7 @@ function display_dataclip($viewname, $limit=100) {
     } else {
         # Sadly, a table name cannot be used as a query parameter. We try to 
         # prevent sql injection by double checking the viewname is valid, above. 
-        $r = db_query_params("SELECT * FROM $viewname", []);
+        $r = db_query_params("SELECT * FROM $viewname OFFSET", [$offset]);
     }
 
     $num_rows = pg_num_rows($r);
@@ -476,9 +373,10 @@ function main() {
 
     if (view_exists($viewname) and access_allowed($viewname, $access_cookie)) {
         $limit = limit();
+        $offse = offset();
         echo '<h1> Data for: ' . $viewname . "</h1>\n";
         display_dataclip_style();
-        display_dataclip($viewname, $limit);
+        display_dataclip($viewname, $limit, $offset);
     } else {
         echo "<h1>Sorry, either a view by the name of '$viewname' does not exist, or the access_cookie '$access_cookie' does not allow you access.";
     }
