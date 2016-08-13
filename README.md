@@ -189,9 +189,9 @@ new_cookie AS (
         VALUES ('foo')
         RETURNING viewname, access_cookie
 )
-SELECT format('viewname?%s&access_cookie=%s', viewname, access_cookie) FROM new_cookie
+SELECT format('dataclip.php?viewname=%s&access_cookie=%s', viewname, access_cookie) FROM new_cookie
 
-/* Gives: 'viewname?foo&access_cookie=0a93f68f-7e01-47d6-bb26-9bd855eaba92' */
+/* Gives: 'dataclip.php?viewname=foo&access_cookie=0a93f68f-7e01-47d6-bb26-9bd855eaba92' */
 ```
 
 
