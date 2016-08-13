@@ -119,7 +119,13 @@ Views listed in `##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##` have mild security in
 the form of an `access_cookie`.  Multiple `access_cookie`s may be listed for a view, in 
 which case any of the `access_cookie`s will allow access.
 
-If there are no `access_cookie`s listed for a view, then the view is default public.
+If either there are no `access_cookie`s listed for a view, then the view is default public. 
+
+Access cookies may use lowercase letters `[a-z]`, digits `[0-9]`, dash `-`, or underscore `_`.
+
+Note: the `access_cookie` `'public'` is special and allows public access to a view.
+
+I find UUIDs to be convenient for `access_cookie`s, but any string could be used.
 
 ### Creating a table to store `access_cookie`s
 
@@ -145,7 +151,9 @@ If there are no `access_cookie`s listed for a view, then the view is default pub
  
 #### Public entries
  
-Views are public by default, so inserting entries with a 'public' access-cookie is reduntant, but accepted.
+Views are public by default, so inserting entries with a 'public' access-cookie is redundant, but accepted.
+
+
        
  ```sql
     INSERT INTO 
