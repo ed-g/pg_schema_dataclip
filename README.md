@@ -71,14 +71,14 @@ GRANT USAGE ON SCHEMA dataclip_schema TO dataclip_user;
 `dataclip_user` should have SELECT permissions for tables and views in the
 dataclip_schema only.  There are at least three options for how to manage this.
 
-1. Whenever new views are created, grant access normally.
+### Whenever new views are created, grant access normally.
 
 ```sql
     CREATE view dataclip_schema.foo AS select 'bar' AS bar;
     GRANT SELECT ON dataclip_schema.foo TO dataclip_user;
 ```
+### Create views, then grant access to everything in the schema.  
 
-1. Or create views, then grant access to everything in the schema.  
 You'll have to re-run the "GRANT SELECT ON ALL TABLES IN SCHEMA ..." command 
 each time new views are created.
 
@@ -88,12 +88,14 @@ each time new views are created.
     GRANT SELECT ON ALL TABLES IN SCHEMA dataclip_schema TO dataclip_user;
 ```
 
-1. Or, use the handy postgres "ALTER DEFAULT PRIVILEGES" command to 
-grant access in the future whenever views are created.
-  a. `privileged_user` is the user you'll typically be using to CREATE the 
-views.
-  b. `dataclip_user` is the user used to SELECT from the views and show them on the web.
+### Use the handy postgres "ALTER DEFAULT PRIVILEGES" command
 
+ALTER DEFAULT PRIVILEGES will grant access in the future whenever views are created.
+
+`privileged_user` is the user you'll typically be using to CREATE the 
+views.
+
+`dataclip_user` is the user used to SELECT from the views and show them on the web.
 
 ```sql
     ALTER DEFAULT PRIVILEGES 
@@ -102,33 +104,62 @@ views.
         GRANT SELECT ON TABLES TO dataclip_user;
 ```
 
+## Access Cookies
 
 Views listed in ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES## have mild security in 
-the form of an access_cookie.  Multiple access_cookie may be listed for a view, in 
-which case any of the access_cookie will allow access.
+the form of an `access_cookie`.  Multiple `access_cookie`s may be listed for a view, in 
+which case any of the `access_cookie`s will allow access.
 
 If there are no access_cookie listed for a view, then the view is default public.
 
-To manage the access cookies:
+### Creating a table to store `access_cookie`s
 
 ```sql
+
+    /* Or you could use the "uuid-ossp" EXTENSION, in which case you'd want
+       to use uuid_generate_v4() below, instead of gen_random_uuid() */
+    CREATE EXTENSION pgcrypto; 
+    
     SET search_path = dataclip_schema;
 
     CREATE TABLE "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" (
         viewname      text not null, 
-        access_cookie text not null default 'public',
+        access_cookie text not null default gen_random_uuid(),
         PRIMARY KEY (viewname, access_cookie)
     );
 
     GRANT SELECT ON "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" to dataclip_user;
-
+ ```
+ 
+### Example `access_cookie` entries
+ 
+ 
+#### Public entries
+ 
+Views are public by default, so inserting entries with a 'public' access-cookie is reduntant, but accepted.
+       
+ ```sql
     INSERT INTO 
         "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
-        (viewname) values ('foo');
-
-    INSERT INTO 
-        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
-        (viewname, access_cookie) values ('bar', gen_random_uuid());
-
+        (viewname, access_cookie) values ('foo', 'public');
 ```
+#### Private entries
+
+##### Using default value of gen_random_uuid()
+
+```sql
+INSERT INTO 
+        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
+        (viewname) values ('bar')
+    RETURNING viewname, access_cookie;
+```
+ 
+##### Using an UUID-format string.
+    
+```sql
+    INSERT INTO 
+        "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
+        (viewname, access_cookie) values ('baz', '64ee7483-ae4c-4138-8a94-6fb09adefe3b');
+```
+
 
