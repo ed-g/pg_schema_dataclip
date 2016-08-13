@@ -376,8 +376,8 @@ function main() {
      */
 
     if (view_exists($viewname) and access_allowed($viewname, $access_cookie)) {
-        $limit = limit();
-        $offse = offset();
+        $limit  = limit();
+        $offset = offset();
         echo '<h1> Data for: ' . $viewname . "</h1>\n";
         display_dataclip_style();
         display_dataclip($viewname, $limit, $offset);
