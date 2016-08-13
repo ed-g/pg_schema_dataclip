@@ -46,7 +46,7 @@ And create an access-log table with INSERT access to your `dataclip_user`;
 
 ## Database User 
 
-The database user (referred to as dataclip_user, but it could be any 
+The database user (referred to as `dataclip_user`, but it could be any 
 postgres user) should have as few privileges as possible.
 
 You'll want to use a low setting for its connection limit, so it is less 
@@ -59,7 +59,7 @@ a good idea.
 ALTER USER dataclip_user CONNECTION LIMIT 2;
 ```
 
-USAGE on a single schema (referred to as dataclip_schema, but it could be 
+USAGE on a single schema (referred to as `dataclip_schema`, but it could be 
 any Postgres schema)
  
 ```sql
@@ -69,7 +69,7 @@ GRANT USAGE ON SCHEMA dataclip_schema TO dataclip_user;
 ## Granting access to dataclip views
 
 `dataclip_user` should have SELECT permissions for tables and views in the
-dataclip_schema only.  There are at least three options for how to manage this.
+`dataclip_schema` only.  There are at least three options for how to manage this.
 
 ### Whenever new views are created, grant access normally.
 
@@ -106,11 +106,11 @@ views.
 
 ## Access Cookies
 
-Views listed in ##PG_SCHEMA_DATACLIP_ACCESS_COOKIES## have mild security in 
+Views listed in `##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##` have mild security in 
 the form of an `access_cookie`.  Multiple `access_cookie`s may be listed for a view, in 
 which case any of the `access_cookie`s will allow access.
 
-If there are no access_cookie listed for a view, then the view is default public.
+If there are no `access_cookie`s listed for a view, then the view is default public.
 
 ### Creating a table to store `access_cookie`s
 
