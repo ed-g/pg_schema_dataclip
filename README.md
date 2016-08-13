@@ -148,7 +148,7 @@ Views are public by default, so inserting entries with a 'public' access-cookie 
 ##### Using default value of gen_random_uuid()
 
 ```sql
-INSERT INTO 
+    INSERT INTO 
         "##PG_SCHEMA_DATACLIP_ACCESS_COOKIES##" 
         (viewname) values ('bar')
     RETURNING viewname, access_cookie;
