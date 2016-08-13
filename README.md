@@ -68,10 +68,10 @@ GRANT USAGE ON SCHEMA dataclip_schema TO dataclip_user;
 
 ## Granting access to dataclip views
 
-SELECT permissions for tables and views in the dataclip_schema only.
- There are at least three options for how to manage this.
+`dataclip_user` should have SELECT permissions for tables and views in the
+dataclip_schema only.  There are at least three options for how to manage this.
 
-1. When new views are created, (option A) grant access normally.
+1. Whenever new views are created, grant access normally.
 
 ```sql
     CREATE view dataclip_schema.foo AS select 'bar' AS bar;
